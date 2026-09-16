@@ -103,9 +103,16 @@ class H1WalkEnv(H1BaseEnv):
             28,
             29,  # motor torque [2]
         ]
-        num_ext = self._get_num_external_obs()
-        append_obs = [(len(base_mir_obs) + i) for i in range(num_ext)]
-        self.robot.clock_inds = append_obs[0:2]
+        # External state layout: clock(2), mode_one_hot(3), mode_ref(3).
+        # Left-right mirroring flips the yaw command sign (INPLACE spin
+        # direction); the gait clock, modes and forward velocity are
+        # invariant.
+        n_robot = len(base_mir_obs)
+        clock = [n_robot, n_robot + 1]
+        one_hot = [n_robot + 2, n_robot + 3, n_robot + 4]
+        mode_ref = [-(n_robot + 5), n_robot + 6, n_robot + 7]  # yaw sign flip
+        append_obs = clock + one_hot + mode_ref
+        self.robot.clock_inds = clock
         self.robot.mirrored_obs = np.array(base_mir_obs + append_obs, copy=True).tolist()
         # Action ordering: [left_leg(5), right_leg(5)]; mirror swaps and flips
         # signs of yaw/roll dofs (idx 0,1).

@@ -5,7 +5,7 @@ This makes environments discoverable for testing and external use.
 """
 
 from envs.cartpole import CartpoleEnv
-from envs.h1 import H1Env, H1WalkEnv, H1CmdWalkEnv
+from envs.h1 import H1CmdWalkEnv, H1Env, H1WalkEnv
 from envs.jvrc import JvrcStepEnv, JvrcWalkEnv
 
 # Registry of all available environments

@@ -153,27 +153,16 @@ class WalkingTask(BaseTask):
         return reward
 
     def step(self):
-        # increment phase
-        self._phase += 1
-        if self._phase >= self._period:
-            self._phase = 0
+        # The gait clock only advances while walking. While standing the
+        # phase is frozen (in double support), so the clock stays in a valid
+        # state for the next walking bout instead of decorrelating from the
+        # actual gait.
+        if not self.is_standing:
+            self._phase += 1
+            if self._phase >= self._period:
+                self._phase = 0
 
-        # random switch between INPLACE and STANDING (only in double support)
-        in_double_support = self.right_clock[0](self._phase) == 1 and self.left_clock[0](self._phase) == 1
-        if np.random.randint(100) == 0 and in_double_support:
-            if self.mode == WalkModes.INPLACE:
-                self.mode = WalkModes.STANDING
-            elif self.mode == WalkModes.STANDING:
-                self.mode = WalkModes.INPLACE
-            self.mode_ref = self.mode.sample_ref()
-
-        # random switch between INPLACE and FORWARD
-        if np.random.randint(200) == 0 and self.mode != WalkModes.STANDING:
-            if self.mode == WalkModes.FORWARD:
-                self.mode = WalkModes.INPLACE
-            elif self.mode == WalkModes.INPLACE:
-                self.mode = WalkModes.FORWARD
-            self.mode_ref = self.mode.sample_ref()
+        self._switch_mode()
 
         # manipulate hfield
         if self.manip_hfield:
@@ -183,6 +172,35 @@ class WalkingTask(BaseTask):
                     np.random.uniform(-0.5, 0.5),
                     np.random.uniform(-0.015, -0.035),
                 ]
+
+    def _switch_mode(self):
+        """Randomly switch modes during an episode.
+
+        Leaving STANDING is always allowed (both feet are on the ground);
+        switching mid-gait only happens during double support.
+        """
+        if self.is_standing:
+            if np.random.randint(100) == 0:
+                self.mode = WalkModes.INPLACE
+                self.mode_ref = self.mode.sample_ref()
+            return
+
+        in_double_support = self.right_clock[0](self._phase) == 1 and self.left_clock[0](self._phase) == 1
+        if not in_double_support:
+            return
+
+        if self.mode == WalkModes.INPLACE and np.random.randint(100) == 0:
+            self.mode = WalkModes.STANDING
+        elif np.random.randint(200) == 0:
+            if self.mode == WalkModes.FORWARD:
+                self.mode = WalkModes.INPLACE
+            elif self.mode == WalkModes.INPLACE:
+                self.mode = WalkModes.FORWARD
+            else:
+                return
+        else:
+            return
+        self.mode_ref = self.mode.sample_ref()
 
     def substep(self) -> None:
         pass
@@ -198,9 +216,16 @@ class WalkingTask(BaseTask):
         return True in terminate_conditions.values()
 
     def reset(self, iter_count=0):
+        self._init_mode()
+        self._setup_gait_clock()
+
+    def _init_mode(self):
+        """Sample the initial mode and velocity reference for the episode."""
         self.mode = np.random.choice([WalkModes.STANDING, WalkModes.INPLACE, WalkModes.FORWARD], p=[0.6, 0.2, 0.2])
         self.mode_ref = self.mode.sample_ref()
 
+    def _setup_gait_clock(self):
+        """Build the gait-clock reward splines and initialize the phase."""
         self.right_clock, self.left_clock = rewards.create_phase_reward(
             self._swing_duration, self._stance_duration, 0.1, "grounded", 1 / self._control_dt
         )
@@ -208,4 +233,10 @@ class WalkingTask(BaseTask):
         # number of control steps in one full cycle
         # (one full cycle includes left swing + right swing)
         self._period = np.floor(2 * self._total_duration * (1 / self._control_dt))
-        self._phase = np.random.randint(0, self._period)
+
+        if self.is_standing:
+            # No gait while standing: start the clock in the middle of the
+            # double-support window so walking resumes from a valid phase.
+            self._phase = int(np.floor((self._swing_duration + 0.5 * self._stance_duration) / self._control_dt))
+        else:
+            self._phase = np.random.randint(0, self._period)

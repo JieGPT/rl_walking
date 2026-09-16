@@ -64,7 +64,7 @@ class SymmetricEnv:
     def mirror_clock_observation(self, obs):
         matrix = self.obs_mirror_matrix.to(obs.device)
         mirror_obs_batch = torch.zeros_like(obs)
-        history_len = 1  # FIX HISTORY-OF-STATES LENGTH TO 1 FOR NOW
+        history_len = obs.shape[1] // self.base_obs_len
         for block in range(history_len):
             obs_ = obs[:, self.base_obs_len * block : self.base_obs_len * (block + 1)]
             mirror_obs = obs_ @ matrix

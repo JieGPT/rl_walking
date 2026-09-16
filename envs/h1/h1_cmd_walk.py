@@ -9,6 +9,7 @@ from tasks import cmd_walking_task
 from .gen_xml import ARM_JOINTS, WAIST_JOINTS, builder
 from .h1_base import H1BaseEnv
 
+
 class H1CmdWalkEnv(H1BaseEnv):
   def _get_default_config_path(self):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), "configs/cmd_walk.yaml")
@@ -51,9 +52,9 @@ class H1CmdWalkEnv(H1BaseEnv):
     self._setup_mirror_indices()  # same as H1WalkEnv; append_obs auto-covers 9 ext dims
   
   def _setup_mirror_indices(self) -> None:
-        # Mirror indices over the 35-D robot state + 8-D external state.
+        # Mirror indices over the 35-D robot state + 9-D external state.
         # Order: root_orient(2), root_ang_vel(3), motor_pos(10), motor_vel(10),
-        # motor_tau(10), clock(2), mode_one_hot(3), mode_ref(3).
+        # motor_tau(10), clock(2), mode_one_hot(4), mode_ref(3).
         # Joint order in motor blocks: left(5) then right(5); within a leg:
         # hip_yaw, hip_roll, hip_pitch, knee, ankle.
         base_mir_obs = [
@@ -93,9 +94,15 @@ class H1CmdWalkEnv(H1BaseEnv):
             28,
             29,  # motor torque [2]
         ]
-        num_ext = self._get_num_external_obs()
-        append_obs = [(len(base_mir_obs) + i) for i in range(num_ext)]
-        self.robot.clock_inds = append_obs[0:2]
+        # External state layout: clock(2), mode_one_hot(4), mode_ref(3).
+        # Left-right mirroring swaps the turn modes and flips the yaw
+        # command sign; the gait clock and forward velocity are invariant.
+        n_robot = len(base_mir_obs)
+        clock = [n_robot, n_robot + 1]
+        one_hot = [n_robot + 2, n_robot + 3, n_robot + 5, n_robot + 4]  # TURN_LEFT <-> TURN_RIGHT
+        mode_ref = [-(n_robot + 6), n_robot + 7, n_robot + 8]  # yaw sign flip
+        append_obs = clock + one_hot + mode_ref
+        self.robot.clock_inds = clock
         self.robot.mirrored_obs = np.array(base_mir_obs + append_obs, copy=True).tolist()
         # Action ordering: [left_leg(5), right_leg(5)]; mirror swaps and flips
         # signs of yaw/roll dofs (idx 0,1).
@@ -164,7 +171,7 @@ class H1CmdWalkEnv(H1BaseEnv):
     marker_drawer.add_marker(pos=arrow_pos, mat=mat, size=[0.05, 0.05, 2 * length], rgba=rgba_blue, type=arrow)
 
   # --- interactive command interface ---
-  KEY_COMMANDS = {331: "STANDING", 329: "FORWARD", 330: "TURN_LEFT", 332: "TURN_RIGHT"}
+  KEY_COMMANDS = {264: "STANDING", 265: "FORWARD", 263: "TURN_LEFT", 262: "TURN_RIGHT"}
   KEY_REFS = {"STANDING": [0, 0, 0], "FORWARD": [0, 0.2, 0], "TURN_LEFT": [0.4, 0, 0], "TURN_RIGHT": [-0.4, 0, 0]}
 
   def apply_command(self, name):
