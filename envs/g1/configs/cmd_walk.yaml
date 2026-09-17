@@ -1,0 +1,62 @@
+sim_dt: 0.001
+control_dt: 0.025
+obs_history_len: 1
+action_smoothing: 0.5
+
+# Path for exporting generated MuJoCo XML files
+xml_export_path: /tmp/mjcf-export
+
+ctrllimited: false
+jointlimited: false
+reduced_xml: true
+
+init_noise: 3
+
+# Neutral standing pose in radians, per leg (model actuator order):
+# [hip_pitch, hip_roll, hip_yaw, knee, ankle_pitch, ankle_roll] x2
+# All zeros = manufacturer "stand" keyframe: feet flat, pelvis at 0.79 m.
+half_sitting_pose: [0, 0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0, 0]
+
+pdgains:
+  "left_hip_yaw_joint":   [99.0, 3.0]
+  "left_hip_roll_joint":  [115.7, 3.0]
+  "left_hip_pitch_joint": [140.0, 4.0]
+  "left_knee_joint":      [140.0, 4.0]
+  "left_ankle_pitch_joint": [26.5, 2.0]
+  "left_ankle_roll_joint":  [26.5, 2.0]
+  "right_hip_yaw_joint":   [99.0, 3.0]
+  "right_hip_roll_joint":  [115.7, 3.0]
+  "right_hip_pitch_joint": [140.0, 4.0]
+  "right_knee_joint":      [140.0, 4.0]
+  "right_ankle_pitch_joint": [26.5, 2.0]
+  "right_ankle_roll_joint":  [26.5, 2.0]
+
+# Walking task parameters
+task:
+  goal_height: 0.79
+  total_duration: 0.5
+  swing_duration: 0.4
+  stance_duration: 0.1
+
+observation_noise:
+  enabled: true
+  multiplier: 1.0
+  type: "uniform"
+  scales:
+    root_orient: 0.05
+    root_ang_vel: 0.05
+    motor_pos: 0.02
+    motor_vel: 0.05
+    motor_tau: 5.0
+
+perturbation:
+  enable: true
+  bodies: ["pelvis", "torso_link"]
+  force_magnitude: 10
+  torque_magnitude: 2
+  interval: 5
+
+dynamics_randomization:
+  enable: true
+  interval: 0.5

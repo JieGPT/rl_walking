@@ -97,6 +97,8 @@ def import_env(env_name_str):
         from envs.cartpole import CartpoleEnv as Env
     elif env_name_str == "h1_cmd_walk":
         from envs.h1 import H1CmdWalkEnv as Env
+    elif env_name_str == "g1_cmd_walk":
+        from envs.g1 import G1CmdWalkEnv as Env
     else:
         raise Exception("Check env name!")
     return Env

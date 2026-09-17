@@ -27,15 +27,23 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from envs.h1 import H1CmdWalkEnv
+ENVS = {
+    "h1": ("envs.h1", "H1CmdWalkEnv"),
+    "g1": ("envs.g1", "G1CmdWalkEnv"),
+}
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Verify H1CmdWalkEnv keyboard control")
+    parser = argparse.ArgumentParser(description="Verify cmd-walk env keyboard control")
+    parser.add_argument("--env", type=str, default="h1", choices=list(ENVS), help="Robot environment to verify")
     parser.add_argument("--actor", type=Path, default=None, help="Path to a trained actor_*.pt (optional)")
     args = parser.parse_args()
 
-    env = H1CmdWalkEnv()
+    import importlib
+
+    module = importlib.import_module(ENVS[args.env][0])
+    EnvClass = getattr(module, ENVS[args.env][1])
+    env = EnvClass()
 
     policy = None
     if args.actor is not None:
